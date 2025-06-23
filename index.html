@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Food Classifier 🍖🍗🐟</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- 1) Core TensorFlow.js engine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+  <!-- 2) Teachable Machine image helper -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #f2f7fa;
+      --card-bg: #ffffff;
+      --primary-color: #1e88e5;
+      --secondary-color: #4caf50;
+      --text-color: #333333;
+      --border-radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Rubik', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      font-weight: 500;
+      margin-bottom: 20px;
+      color: var(--primary-color);
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+    }
+    #drop-area {
+      border: 2px dashed var(--primary-color);
+      border-radius: var(--border-radius);
+      padding: 30px;
+      cursor: pointer;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    #drop-area.hover {
+      background: rgba(30, 136, 229, 0.1);
+      border-color: var(--secondary-color);
+    }
+    #fileElem {
+      display: none;
+    }
+    #preview {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+    }
+    #label-container {
+      margin-top: 20px;
+      text-align: left;
+    }
+    .label-bar {
+      margin: 8px 0;
+    }
+    .bar-bg {
+      width: 100%;
+      background: #eeeeee;
+      border-radius: var(--border-radius);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .bar {
+      height: 18px;
+      background: var(--secondary-color);
+      border-radius: var(--border-radius);
+      transition: width 0.4s ease;
+    }
+    .error {
+      color: #e53935;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Food Classifier 🍖🍗🐟</h1>
+  <div class="card">
+    <input type="file" id="fileElem" accept="image/*">
+    <div id="drop-area">Click or Drop an Image Here</div>
+    <img id="preview" src="" alt="Preview will appear here">
+    <div id="label-container">Loading model...</div>
+  </div>
+
+  <script>
+    // Model files must be in the same folder
+    const URL = "./";
+    let model, labelContainer;
+
+    async function init() {
+      labelContainer = document.getElementById("label-container");
+      try {
+        model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+        labelContainer.innerHTML = "<p>✅ Model loaded!<br>Please upload an image.</p>";
+      } catch (err) {
+        console.error("Model load error:", err);
+        labelContainer.innerHTML = `
+          <p class="error">
+            ❌ Could not load model.<br>
+            Make sure model.json, metadata.json, and weights.bin are here.<br>
+            And serve over HTTP (not file://).
+          </p>`;
+      }
+    }
+
+    async function predict(img) {
+      const predictions = await model.predict(img);
+      labelContainer.innerHTML = "";
+      predictions.forEach(p => {
+        const pct = (p.probability * 100).toFixed(1);
+        const barHTML = `
+          <div class="label-bar">
+            <strong>${p.className}: ${pct}%</strong>
+            <div class="bar-bg">
+              <div class="bar" style="width: ${pct}%;"></div>
+            </div>
+          </div>`;
+        labelContainer.innerHTML += barHTML;
+      });
+    }
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const imgEl = document.getElementById("preview");
+        imgEl.src = e.target.result;
+        imgEl.onload = () => predict(imgEl);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Setup drag & drop + click upload
+    const dropArea = document.getElementById("drop-area");
+    const fileElem = document.getElementById("fileElem");
+
+    dropArea.addEventListener("click", () => fileElem.click());
+    fileElem.addEventListener("change", e => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    ["dragenter", "dragover"].forEach(evt =>
+      dropArea.addEventListener(evt, e => {
+        e.preventDefault();
+        dropArea.classList.add("hover");
+      })
+    );
+    ["dragleave", "drop"].forEach(evt =>
+      dropArea.addEventListener(evt, e => {
+        e.preventDefault();
+        dropArea.classList.remove("hover");
+      })
+    );
+    dropArea.addEventListener("drop", e => {
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    init();
+  </script>
+</body>
+</html>
