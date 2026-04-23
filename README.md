@@ -66,4 +66,4 @@ food-classifier/
 
 
 
-*Enjoy classifying!*
+
